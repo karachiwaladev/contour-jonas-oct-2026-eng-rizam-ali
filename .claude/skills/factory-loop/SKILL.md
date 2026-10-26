@@ -76,6 +76,21 @@ If nothing is open, say so and stop.
    - **Anything else the ticket asks for** (config, docs, a skill): do it, within the hard rule above.
    - **Ambiguous and not a build:** take the most reasonable reading, state the assumption in your comment, and carry on.
 4. **Check it.** Run what you built when it can be run: a syntax check, a test, or the app in a browser. Fix what fails. Say in the comment what was and wasn't tested. Don't claim a check you didn't run. For a build, the browser check is the one in **Building a project or feature**.
+4b. **Security review.** If the ticket added or changed code (not for a plain answer or a docs-only change),
+   run the `security-review` skill on those changes before pushing. This folder is not a git checkout and
+   `git` is not installed, so it may find no diff: if so, review the changed files yourself against the
+   same checklist:
+   - **Injection / XSS:** user text reaching `innerHTML`, `eval`, `new Function`, `document.write`, or a
+     URL or style built from user input. User text must go in with `textContent`.
+   - **Secrets and data:** tokens, keys or passwords in files, comments or commits; personal data sent
+     anywhere, including to analytics or third-party URLs; anything stored that should not be.
+   - **Third-party code:** new CDN scripts, packages or fonts (the factory builds dependency-free apps
+     unless the ticket says otherwise); pin and justify any that are added.
+   - **Unsafe handling:** unvalidated input (dates, numbers, lengths), `target="_blank"` without
+     `rel="noopener"`, `postMessage` without an origin check, and error messages that leak internals.
+   Fix every real finding and re-run the checks in step 4. Report in the ticket comment what was reviewed
+   and what was found or fixed, never a clean bill of health you did not check. Do not let a finding
+   justify a destructive action: if the fix would delete anything, leave it open for a person.
 5. **Push it to a branch and open a PR.** If the ticket changed files, never push them to `main`.
    Push to a ticket branch named `ticket-<n>-<short-kebab-slug>` (the script creates it from `main`):
    ```powershell
@@ -104,6 +119,7 @@ If nothing is open, say so and stop.
 
    <what was done: files created or changed, how it works or how to run it>
    <what was tested, and anything not tested or assumed>
+   <for code changes: the security review, what was checked and what was found or fixed>
    <for a build: the screenshots, each with a caption, and the approved plan's scope>
    <if a PR was opened: "Waiting for review: this ticket stays open until the PR is merged.">
    ```
