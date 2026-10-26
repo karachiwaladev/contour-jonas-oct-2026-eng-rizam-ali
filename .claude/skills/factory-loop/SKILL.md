@@ -113,11 +113,18 @@ open (👀 stays on it), post one comment saying what you are waiting for, and m
      drive every feature in the plan (click, type, reload), check the console for errors and the network
      for failures, and take screenshots.
    - **If chrome-devtools is not installed, say so** in your report and in the ticket comment, and fall
-     back to headless Edge: `msedge --headless=new --screenshot=<file> --window-size=1000,800 <url>`
-     for the page, and a throwaway test page (kept in the scratchpad, never committed) for states that
-     need interaction. Serve over `http://localhost`, run in real time (`--virtual-time-budget` outruns
-     IndexedDB), and keep the profile path short (a long path breaks IndexedDB on Windows). Never
-     install chrome-devtools yourself: tell the user to run `claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest`.
+     back to driving headless Edge over the DevTools Protocol yourself: write a small Node script in the
+     scratchpad (never committed) that starts `msedge --headless=new --remote-debugging-port=<port>`,
+     connects with Node's built-in `WebSocket`, serves the project over `http://localhost`, and uses
+     `Page.navigate`, `Runtime.evaluate` (click, type, read the DOM), `Page.captureScreenshot`,
+     `Emulation.setDeviceMetricsOverride` (mobile width) and `Runtime`/`Log` events (console errors).
+     Poll for conditions, never fixed sleeps. Keep the Edge profile path short (a long path breaks
+     IndexedDB on Windows) and don't use `--virtual-time-budget` (it outruns IndexedDB). Never install
+     chrome-devtools yourself: tell the user to run `claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest`.
+   - **Assert, then look.** Write checks for every behaviour in the plan, and also open the screenshots
+     and judge the layout yourself: passing checks don't prove it looks right.
+   - **Test data is not demo data.** Run edge cases (long text, HTML, limits, old-format records) in the
+     test pass, but take the ticket screenshots in a separate pass with realistic data.
    - **Screenshots:** capture each meaningful state (first load, after the main action, an error or
      empty state, mobile width if the plan has one). Save PNGs, under 1 MB each, to
      `<project>/docs/screenshots/ticket-<n>-<state>.png`. Only screenshot what belongs to this project;
