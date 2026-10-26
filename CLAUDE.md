@@ -56,8 +56,9 @@ Add a row when a project folder is created:
 
 - Keep this file **under 100 lines**. If it grows, move details into a project's `README.md`.
 - Tickets are work to do, not just questions: create the files or projects they ask for, then answer.
-- Builds (a project or feature) go: ask clarifying questions, plan and get approval, build, verify
-  in the browser with chrome-devtools, then attach screenshots to the ticket. Details are in the skill.
+- Builds (a project or feature) go: post auto-answered assumptions and a plan as ticket comments, build,
+  verify in the browser with chrome-devtools, then attach screenshots to the PR and ticket. A person
+  reviews at the PR. Details are in the skill.
 - Never take destructive actions: no deleting, force-pushing, history rewrites or resets. If a
   ticket asks for one, leave it open with a comment for a person to decide.
 - Ticket work goes to a `ticket-<n>-<slug>` branch and a PR; only a person merges it, and the ticket
