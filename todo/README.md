@@ -8,6 +8,8 @@ Ticket #4 (issue #5).
 - **Due date** (optional): overdue open tasks show in red, tasks due today are highlighted
 - **Tags** (optional): type them comma-separated when adding, e.g. `home, bills`
 - **Filters:** show All, Incomplete or Completed tasks, and narrow by one tag. The two filters combine.
+- **Recurring tasks** (optional, needs a due date): repeat daily, weekly, monthly or yearly. Marking one done adds
+  the next occurrence with the next due date.
 
 Tasks are stored in the browser's own database (IndexedDB), so they survive a reload.
 There is no server, build step or dependency, and the data never leaves the device.
@@ -30,7 +32,12 @@ Opening `index.html` straight from disk (`file://`) was not verified, and some b
 - **Filters are not saved:** they reset to All / All tags on reload. Tasks, dates and tags are saved.
 - **Older tasks** saved before due dates and tags existed still work: they simply have no date and no tags.
 - A done task is never shown as overdue.
-- Not included: editing a task after it is created, sorting by due date, and reminders.
+- **Repeats** count from the original due date, so a weekly Monday task stays on Mondays. Finishing one late skips
+  ahead to the first matching date after today instead of leaving overdue copies. Monthly and yearly clamp to the
+  end of a short month (31 Jan -> 28 Feb, 29 Feb -> 28 Feb).
+- Only the first completion adds the next occurrence: unticking and re-ticking never adds another.
+- The Repeat choice is only usable once a due date is set. To stop a series, delete the open occurrence.
+- Not included: editing a task after it is created, custom intervals, end dates, sorting by due date, and reminders.
 
 ## Data
 Each task in IndexedDB (`todo-app`, store `tasks`):
@@ -50,7 +57,7 @@ Each task in IndexedDB (`todo-app`, store `tasks`):
 | `index.html` | Page structure |
 | `style.css` | Styling, with automatic light and dark themes |
 | `app.js` | IndexedDB storage, add, toggle and delete, filters, due dates and tags |
-| `docs/screenshots/` | Screenshots from the browser verification (ticket #5) |
+| `docs/screenshots/` | Screenshots from the browser verification (tickets #5 and #6) |
 
 ## Verified
 Driven in headless Edge over the DevTools Protocol against `http://localhost`, with 30 checks passing and no
@@ -58,3 +65,10 @@ console errors: older tasks still render, tag cleaning (case, duplicates, length
 overdue / today / future labels, each status filter, tag filter alone and combined with status, filter reset when a
 tag disappears, the "no match" message, persistence across reload, and no horizontal scroll at 390 px.
 Task text and tags are inserted with `textContent`, so they are never interpreted as HTML.
+
+Recurring tasks (ticket #6) were checked in Chrome through chrome-devtools against `http://localhost`: each repeat step
+including month-end and leap-year clamping, a late completion skipping ahead and staying on its weekday, the next
+occurrence being created on completion, undo and redo adding no duplicate, a non-recurring task adding nothing, the
+Repeat select disabled without a due date, an older task without a `repeat` field, and persistence across a reload.
+Checked at a 502 px window (the smallest this browser allowed) with no horizontal scroll. Not tested: real elapsed
+time (dates were seeded), or other browsers.
