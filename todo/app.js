@@ -12,6 +12,7 @@ const summary = document.getElementById('summary');
 const errorMsg = document.getElementById('error');
 const dueInput = document.getElementById('new-due');
 const tagsInput = document.getElementById('new-tags');
+const repeatInput = document.getElementById('new-repeat');
 const filters = document.getElementById('filters');
 const statusFilter = document.getElementById('status-filter');
 const tagFilter = document.getElementById('tag-filter');
@@ -49,9 +50,17 @@ function run(mode, op) {
 
 const getAll = () => run('readonly', (s) => s.getAll());
 // Tasks saved before due dates and tags existed have neither field: treat them as no date, no tags.
-const addTask = (title, due, tags) =>
-  run('readwrite', (s) => s.add({ title, done: false, createdAt: Date.now(), due, tags }));
+// `repeat` is null or one of REPEATS and only makes sense with a due date. Older tasks have no `repeat`.
+const newTask = (title, due, tags, repeat) =>
+  ({ title, done: false, createdAt: Date.now(), due, tags, repeat });
+const addTask = (title, due, tags, repeat) => run('readwrite', (s) => s.add(newTask(title, due, tags, repeat)));
 const putTask = (task) => run('readwrite', (s) => s.put(task));
+// Marks a recurring task done and adds its next occurrence in one transaction, so both happen or neither does.
+const completeAndSpawn = (task, next) =>
+  run('readwrite', (s) => {
+    s.put({ ...task, done: true, spawned: true });
+    return s.add(newTask(task.title, next, task.tags || [], task.repeat));
+  });
 const deleteTask = (id) => run('readwrite', (s) => s.delete(id));
 
 function showError(message) {
@@ -75,6 +84,33 @@ function todayString() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const REPEATS = ['daily', 'weekly', 'monthly', 'yearly'];
+
+function toDateString(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// One step of a repeat from 'YYYY-MM-DD', in local calendar dates. Monthly and yearly clamp to the
+// end of a shorter month (31 Jan -> 28 Feb, 29 Feb -> 28 Feb).
+function stepDate(iso, repeat) {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (repeat === 'daily') return toDateString(new Date(y, m - 1, d + 1));
+  if (repeat === 'weekly') return toDateString(new Date(y, m - 1, d + 7));
+  const months = repeat === 'monthly' ? 1 : 12;
+  const lastDay = new Date(y, m - 1 + months + 1, 0).getDate(); // last day of the target month
+  return toDateString(new Date(y, m - 1 + months, Math.min(d, lastDay)));
+}
+
+// Next due date: one step after `due`. A task finished late skips ahead to the first date after today,
+// so completing it never leaves a pile of overdue copies.
+function nextDue(due, repeat) {
+  const today = todayString();
+  let next = stepDate(due, repeat);
+  while (next <= today) next = stepDate(next, repeat);
+  return next;
 }
 
 function formatDate(iso, withWeekday) {
@@ -120,10 +156,17 @@ function renderTask(task) {
 
   const due = dueLabel(task);
   const tags = task.tags || [];
-  if (due || tags.length) {
+  const repeats = REPEATS.includes(task.repeat) && task.due;
+  if (due || repeats || tags.length) {
     const meta = document.createElement('div');
     meta.className = 'meta';
     if (due) meta.append(due);
+    if (repeats) {
+      const rep = document.createElement('span');
+      rep.className = 'repeat';
+      rep.textContent = `Repeats ${task.repeat}`;
+      meta.append(rep);
+    }
     for (const tag of tags) {
       const chip = document.createElement('span');
       chip.className = 'tag';
@@ -199,14 +242,24 @@ form.addEventListener('submit', (event) => {
   if (!title) return;
   const due = /^\d{4}-\d{2}-\d{2}$/.test(dueInput.value) ? dueInput.value : null;
   const tags = parseTags(tagsInput.value);
+  const repeat = due && REPEATS.includes(repeatInput.value) ? repeatInput.value : null;
   guarded(async () => {
-    await addTask(title, due, tags);
+    await addTask(title, due, tags, repeat);
     input.value = '';
     dueInput.value = '';
     tagsInput.value = '';
+    syncRepeat();
     input.focus();
   });
 });
+
+// Repeating needs a due date to count from: the select is only usable while one is set.
+function syncRepeat() {
+  const hasDue = /^\d{4}-\d{2}-\d{2}$/.test(dueInput.value);
+  repeatInput.disabled = !hasDue;
+  if (!hasDue) repeatInput.value = '';
+}
+dueInput.addEventListener('input', syncRepeat);
 
 statusFilter.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-status]');
@@ -229,7 +282,14 @@ list.addEventListener('change', (event) => {
   guarded(async () => {
     const tasks = await getAll();
     const task = tasks.find((t) => t.id === id);
-    if (task) await putTask({ ...task, done: event.target.checked });
+    if (!task) return;
+    const done = event.target.checked;
+    // Only the first completion adds the next occurrence: undoing and redoing it must not add another.
+    if (done && !task.done && !task.spawned && task.due && REPEATS.includes(task.repeat)) {
+      await completeAndSpawn(task, nextDue(task.due, task.repeat));
+    } else {
+      await putTask({ ...task, done });
+    }
   });
 });
 

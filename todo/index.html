@@ -18,6 +18,16 @@
           <span>Due</span>
           <input id="new-due" type="date" aria-label="Due date (optional)">
         </label>
+        <label class="field">
+          <span>Repeat</span>
+          <select id="new-repeat" aria-label="Repeat (needs a due date)" disabled>
+            <option value="">None</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </label>
         <label class="field grow">
           <span>Tags</span>
           <input id="new-tags" type="text" placeholder="tags, comma separated" maxlength="200" aria-label="Tags, comma separated (optional)">
