@@ -13,13 +13,33 @@
     <form id="add-form" autocomplete="off">
       <input id="new-task" type="text" placeholder="What needs doing?" maxlength="200" aria-label="New task" required>
       <button type="submit">Add</button>
+      <div class="extras">
+        <label class="field">
+          <span>Due</span>
+          <input id="new-due" type="date" aria-label="Due date (optional)">
+        </label>
+        <label class="field grow">
+          <span>Tags</span>
+          <input id="new-tags" type="text" placeholder="tags, comma separated" maxlength="200" aria-label="Tags, comma separated (optional)">
+        </label>
+      </div>
     </form>
 
     <p id="error" role="alert" hidden></p>
 
+    <section id="filters" hidden>
+      <div id="status-filter" class="chips" role="group" aria-label="Filter by status">
+        <button type="button" class="chip" data-status="all" aria-pressed="true">All</button>
+        <button type="button" class="chip" data-status="incomplete" aria-pressed="false">Incomplete</button>
+        <button type="button" class="chip" data-status="completed" aria-pressed="false">Completed</button>
+      </div>
+      <div id="tag-filter" class="chips" role="group" aria-label="Filter by tag" hidden></div>
+    </section>
+
     <ul id="task-list"></ul>
 
     <p id="empty" hidden>Nothing to do. Add a task above.</p>
+    <p id="no-match" hidden>No tasks match these filters.</p>
     <p id="summary" hidden></p>
   </main>
   <script src="app.js"></script>

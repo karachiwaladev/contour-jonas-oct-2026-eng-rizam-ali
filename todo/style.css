@@ -37,9 +37,31 @@ main {
 
 h1 { margin: 0 0 20px; font-size: 1.6rem; }
 
-#add-form { display: flex; gap: 8px; }
+#add-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
 
-input[type="text"] {
+.extras {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.field.grow { flex: 1; min-width: 160px; }
+
+input[type="text"],
+input[type="date"] {
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
@@ -50,7 +72,10 @@ input[type="text"] {
   font: inherit;
 }
 
+input[type="date"] { flex: none; }
+
 input[type="text"]:focus-visible,
+input[type="date"]:focus-visible,
 button:focus-visible,
 input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--accent);
@@ -65,6 +90,32 @@ button {
   color: #fff;
   font: inherit;
   cursor: pointer;
+}
+
+#filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+button.chip {
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+button.chip:hover { border-color: var(--accent); }
+
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 #task-list {
@@ -96,15 +147,41 @@ button {
   cursor: pointer;
 }
 
-.task .title {
+.task .body {
   flex: 1;
   min-width: 0;
+}
+
+.task .title {
+  display: block;
   overflow-wrap: anywhere;
 }
 
 .task.done .title {
   color: var(--muted);
   text-decoration: line-through;
+}
+
+.task .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+.task .due { color: var(--muted); }
+.task .due.today { color: var(--accent); font-weight: 600; }
+.task .due.overdue { color: var(--danger); font-weight: 600; }
+
+.task .tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .task .delete {
@@ -117,4 +194,4 @@ button {
 .task .delete:hover { border-color: var(--danger); }
 
 #error { color: var(--danger); margin: 12px 0 0; }
-#empty, #summary { color: var(--muted); text-align: center; margin: 16px 0 0; }
+#empty, #no-match, #summary { color: var(--muted); text-align: center; margin: 16px 0 0; }

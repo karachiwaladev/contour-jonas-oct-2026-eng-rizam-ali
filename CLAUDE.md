@@ -49,7 +49,7 @@ Add a row when a project folder is created:
 
 | Folder | Purpose | Ticket |
 |---|---|---|
-| `todo/` | Browser todo app (add, mark done, delete) stored in IndexedDB | #4 |
+| `todo/` | Browser todo app (add, mark done, delete, due dates, tags, filters) stored in IndexedDB | #4, #5 |
 
 ## Rules
 
