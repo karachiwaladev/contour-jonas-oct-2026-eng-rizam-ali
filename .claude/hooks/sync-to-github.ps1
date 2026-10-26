@@ -7,15 +7,17 @@
 #   - a file that changed on GitHub since the last sync is skipped, not overwritten
 #   - private or secret-looking files are never uploaded
 #
-# Usage: sync-to-github.ps1 [-Message "text"] [-DryRun]
+# Usage: sync-to-github.ps1 [-Message "text"] [-Branch "ticket-4-todo"] [-DryRun]
+#   -Branch pushes to that branch instead of main. A missing branch is created from main's head,
+#   so the factory can open a pull request for review.
 param(
     [string]$Message,
+    [string]$Branch = 'main',
     [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
 $Repo = 'karachiwaladev/contour-jonas-oct-2026-eng-rizam-ali'
-$Branch = 'main'
 $MaxBytes = 1MB          # text files
 $MaxImageBytes = 5MB     # screenshots
 $ImageExt = '\.(png|jpe?g|gif|webp)$'
@@ -65,8 +67,19 @@ try {
     }
 
     # Remote state
-    $ref = Invoke-Api GET "repos/$Repo/git/ref/heads/$Branch" $null
-    $headSha = $ref.object.sha
+    $branchExists = $true
+    if ($Branch -ne 'main') {
+        gh api "repos/$Repo/git/ref/heads/$Branch" 2>$null | Out-Null
+        $branchExists = ($LASTEXITCODE -eq 0)
+    }
+    if (-not $branchExists) {
+        $mainRef = Invoke-Api GET "repos/$Repo/git/ref/heads/main" $null
+        if (-not $DryRun) { Invoke-Api POST "repos/$Repo/git/refs" @{ ref = "refs/heads/$Branch"; sha = $mainRef.object.sha } | Out-Null }
+        $headSha = $mainRef.object.sha
+    } else {
+        $ref = Invoke-Api GET "repos/$Repo/git/ref/heads/$Branch" $null
+        $headSha = $ref.object.sha
+    }
     $headCommit = Invoke-Api GET "repos/$Repo/git/commits/$headSha" $null
     $remoteTree = Invoke-Api GET "repos/$Repo/git/trees/$($headCommit.tree.sha)?recursive=1" $null
     $remote = @{}
@@ -143,8 +156,8 @@ try {
     [IO.File]::WriteAllText($stateFile, ($state | ConvertTo-Json), $utf8)
 
     $short = $commit.sha.Substring(0, 7)
-    Say "pushed $($toPush.Count) file(s) as $short"
-    Write-Output (@{ systemMessage = "Pushed $($toPush.Count) file(s) to $Repo main ($short)" } | ConvertTo-Json -Compress)
+    Say "pushed $($toPush.Count) file(s) to $Branch as $short"
+    Write-Output (@{ systemMessage = "Pushed $($toPush.Count) file(s) to $Repo $Branch ($short)" } | ConvertTo-Json -Compress)
 }
 catch {
     Say "FAILED: $($_.Exception.Message) (nothing was force-pushed or deleted)"

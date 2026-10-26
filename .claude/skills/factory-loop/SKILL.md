@@ -1,6 +1,6 @@
 ---
 name: factory-loop
-description: Work through the open GitHub issues (tickets) in a repo, one at a time. For each one, react with 👀, read it, do the work it asks for (answer it, create files or projects, and so on), push the result to main, post what was done as a comment, and close it as completed. Never takes destructive actions. Use when the user says "factory loop", "work the tickets", "pick up the issues in my repo", or wants to triage and complete issues end to end.
+description: Work through the open GitHub issues (tickets) in a repo, one at a time. For each one, react with 👀, read it, do the work it asks for (answer it, create files or projects, and so on), push the result to a ticket branch and open a pull request, post what was done as a comment, and leave the ticket open until a person reviews and merges the PR (then close it as completed). Never takes destructive actions. Use when the user says "factory loop", "work the tickets", "pick up the issues in my repo", or wants to triage and complete issues end to end.
 ---
 
 # Factory loop
@@ -45,6 +45,19 @@ If nothing is open, say so and stop.
 
 ## 2. For each ticket, in order
 
+0. **Check for an existing PR first.** The loop runs repeatedly, so a ticket may already have work
+   waiting for review. Look for the ticket's branch/PR (`ticket-<n>-*`):
+   ```powershell
+   gh pr list -R <repo> --state all --search "head:ticket-<n>-" --json number,state,mergedAt,reviewDecision,url
+   ```
+   - **PR open, not reviewed or approved yet:** skip the ticket. Post nothing new.
+   - **PR open with changes requested or new review comments:** read them, push fixes to the same
+     branch (step 5), reply on the PR, and move on. Don't open a second PR.
+   - **PR merged:** post a short comment on the ticket linking the merge, then close it (step 7).
+   - **PR closed without merging:** leave the ticket open and comment once asking a person what to do.
+   - **No PR:** carry on with step 1.
+   Questions that need no file change have no PR: answer, comment and close them as before.
+
 1. **Claim it**: react with 👀.
    ```powershell
    gh api -X POST repos/<repo>/issues/<n>/reactions -f content=eyes
@@ -60,28 +73,40 @@ If nothing is open, say so and stop.
    - **Anything else the ticket asks for** (config, docs, a skill): do it, within the hard rule above.
    - **Ambiguous and not a build:** take the most reasonable reading, state the assumption in your comment, and carry on.
 4. **Check it.** Run what you built when it can be run: a syntax check, a test, or the app in a browser. Fix what fails. Say in the comment what was and wasn't tested. Don't claim a check you didn't run. For a build, the browser check is the one in **Building a project or feature**.
-5. **Push it.** If the ticket changed files, commit and push to `main` *before* commenting, so the comment can link the commit:
+5. **Push it to a branch and open a PR.** If the ticket changed files, never push them to `main`.
+   Push to a ticket branch named `ticket-<n>-<short-kebab-slug>` (the script creates it from `main`):
    ```powershell
-   powershell -NoProfile -File .claude\hooks\sync-to-github.ps1 -Message "<what changed> (closes #<n>)"
+   powershell -NoProfile -File .claude\hooks\sync-to-github.ps1 -Branch ticket-<n>-<slug> -Message "<what changed> (#<n>)"
    ```
+   Then open a pull request into `main` (skip if one already exists for the branch). Write the body to
+   a scratchpad file; mention the ticket as `Refs #<n>`, **never** `closes`/`fixes`/`resolves`, so merging
+   is the only thing that can close it:
+   ```powershell
+   gh pr create -R <repo> --base main --head ticket-<n>-<slug> --title "<what changed> (#<n>)" --body-file <scratchpad>\pr-<n>.md
+   ```
+   The PR body says what changed, how it was tested, and the assumptions made.
    The script adds and updates files only, never deletes, never force-pushes, skips anything that looks
    like a secret, and skips a file that changed on GitHub since the last sync (read its `[sync]` output
    and mention any skipped file). `git` is not installed here, so use this script, not `git`.
-   The same script also runs automatically on every stop, as a safety net.
-   `closes #<n>` in the message auto-closes the ticket, so check its state before closing it yourself.
+   The Stop hook still runs the script against `main` as a safety net; files already pushed to a
+   ticket branch show up there as "changed on GitHub" and are skipped, so unreviewed work never
+   reaches `main`. Never merge the PR yourself, and never approve it: a person reviews and merges.
 6. **Report on the ticket.** Write the body to a file in the scratchpad directory first, so PowerShell quoting can't mangle it:
    ```powershell
    gh issue comment <n> -R <repo> --body-file <scratchpad>\answer-<n>.md
    ```
    Format:
    ```markdown
-   **Answer:** <one sentence: the answer, or what was built and where, with a commit link>
+   **Answer:** <one sentence: the answer, or what was built and where, with the PR link>
 
    <what was done: files created or changed, how it works or how to run it>
    <what was tested, and anything not tested or assumed>
    <for a build: the screenshots, each with a caption, and the approved plan's scope>
+   <if a PR was opened: "Waiting for review: this ticket stays open until the PR is merged.">
    ```
-7. **Close it** as completed (skip if it is already closed):
+7. **Close it** as completed, but only when it needs no review: a question with no file change, or a
+   ticket whose PR a person has **merged**. If a PR is open, leave the ticket open (👀 stays on it).
+   Skip if it is already closed.
    ```powershell
    gh issue close <n> -R <repo> --reason completed
    ```
@@ -130,19 +155,20 @@ open (👀 stays on it), post one comment saying what you are waiting for, and m
      `<project>/docs/screenshots/ticket-<n>-<state>.png`. Only screenshot what belongs to this project;
      never capture secrets or private pages.
 5. **Attach to the ticket.** GitHub's API cannot upload files to a comment, so commit the screenshots
-   (the **Push it** step in the ticket loop does this) and embed them in the comment with permanent
-   links pinned to the commit:
+   (the **Push it** step in the ticket loop does this, to the ticket branch) and embed them in the
+   comment and PR body with permanent links pinned to the commit on that branch:
    ```markdown
    ![After adding a task](https://raw.githubusercontent.com/<repo>/<commit-sha>/<project>/docs/screenshots/ticket-<n>-added.png)
    ```
-   Get the sha with `gh api repos/<repo>/git/ref/heads/main -q .object.sha` after pushing. Put a one-line
+   Get the sha with `gh api repos/<repo>/git/ref/heads/ticket-<n>-<slug> -q .object.sha` after pushing. Put a one-line
    caption on each image, and list what each screenshot proves. Say plainly what was verified in the
    browser and what was not.
 
 ## 3. Report
 
 After the last ticket, re-list open issues to confirm none are left. Then give the user a short table:
-ticket number, title, what was done (one line), and status (closed, left open with the reason, or failed).
+ticket number, title, what was done (one line), and status (closed, awaiting PR review with the PR link, left open with the reason, or failed).
+Tickets awaiting review are expected to remain open.
 
 ## PowerShell gotchas
 
