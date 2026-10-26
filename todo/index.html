@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>Todo</h1>
+
+    <form id="add-form" autocomplete="off">
+      <input id="new-task" type="text" placeholder="What needs doing?" maxlength="200" aria-label="New task" required>
+      <button type="submit">Add</button>
+    </form>
+
+    <p id="error" role="alert" hidden></p>
+
+    <ul id="task-list"></ul>
+
+    <p id="empty" hidden>Nothing to do. Add a task above.</p>
+    <p id="summary" hidden></p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -43,10 +43,11 @@ renames or removes a project.
 
 ### Projects
 
-_None yet._ Add a row when a project folder is created:
+Add a row when a project folder is created:
 
 | Folder | Purpose | Ticket |
 |---|---|---|
+| `todo/` | Browser todo app (add, mark done, delete) stored in IndexedDB | #4 |
 
 ## Rules
 
