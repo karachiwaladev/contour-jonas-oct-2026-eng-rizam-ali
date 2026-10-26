@@ -56,7 +56,9 @@ If nothing is open, say so and stop.
    - **PR merged:** post a short comment on the ticket linking the merge, then close it (step 7).
    - **PR closed without merging:** leave the ticket open and comment once asking a person what to do.
    - **No PR:** carry on with step 1. If a `factory:questions` or `factory:plan` comment already exists,
-     don't post them again; resume the build from the plan.
+     don't post them again. Questions with no author reply yet: skip the ticket (see stage 1 of
+     **Building a project or feature**). Questions answered: post the plan and build. Plan posted: resume
+     the build from the plan.
    Questions that need no file change have no PR: answer, comment and close them as before.
 
 1. **Claim it**: react with 👀.
@@ -116,31 +118,43 @@ If a step fails, leave that ticket open, note the error, and move on to the next
 
 ## Building a project or feature
 
-A build ticket goes through five stages, in order. **Stages 1 and 2 are auto-answered and recorded on the
-ticket.** The loop runs unattended, so never stop to ask a person in the terminal: don't use
-`AskUserQuestion`, `EnterPlanMode` or `ExitPlanMode`. Answer your own questions with the recommended
-default, write both down on the ticket as GitHub comments, and carry on. The human gate is the pull
-request review (step 5 of the ticket loop), where anything wrong gets caught before it reaches `main`.
+A build ticket goes through five stages, in order. **Stage 1 asks the ticket author real clarifying
+questions on GitHub and waits for their answers.** Never ask in the terminal: don't use
+`AskUserQuestion`, `EnterPlanMode` or `ExitPlanMode`. Ask on the ticket, then move on to the next ticket
+while waiting. The loop runs repeatedly, so a later run picks the ticket up once the author has replied.
+The plan (stage 2) is auto-approved; the pull request review (step 5 of the ticket loop) is the final gate.
 
-1. **Clarify (auto-answered).** Read the ticket and the existing project, then list every assumption that
-   would change what you build: scope, data and where it lives, UI and behaviour, edge cases, what is out
-   of scope. Keep it to 1 to 4 questions, skip anything the ticket or code already answers, and pick the
-   recommended default for each. Post them as **one** comment so the ticket author can see and override them:
+1. **Clarify (ask on GitHub, then wait).** Read the ticket and the existing project, then list every
+   question whose answer would change what you build: scope, data and where it lives, UI and behaviour,
+   edge cases, what is out of scope. Keep it to 1 to 4 questions and skip anything the ticket or code
+   already answers. Post them as **one** comment, each with a numbered question, a recommended default,
+   and the alternatives, so the author can answer with just a number and a choice:
    ```markdown
    <!-- factory:questions -->
-   **Assumptions for #<n>** (auto-answered with the recommended default; reply to change any of them)
+   **Questions for #<n>** (please reply on this ticket; I won't start building until you answer)
 
-   1. <question>: **<chosen answer>** (alternative: <other option>)
+   1. <question>
+      - Recommended: **<default>**
+      - Alternatives: <other option>, <other option>
+
+   Reply e.g. "1: recommended, 2: B", or "go with the defaults" to accept all recommendations.
    ```
-2. **Plan (auto-approved).** Post a short plan as a second comment: what you will build, the files and
-   folders, how it works, how you will verify it in the browser, and what is out of scope. Then build.
+   Then **stop work on this ticket**: don't build, don't open a PR, leave it open, and carry on with the
+   next ticket. On each later run, if a `factory:questions` comment exists:
+   - **No reply from the author after it:** skip the ticket and post nothing new.
+   - **The author replied:** treat their answers as the decisions (unanswered questions take the
+     recommended default; "go with the defaults" accepts all), then continue to stage 2.
+   - Never post the questions twice.
+2. **Plan (auto-approved).** Using the author's answers, post a short plan as a second comment: what you
+   will build, the files and folders, how it works, how you will verify it in the browser, and what is out
+   of scope. Then build.
    ```markdown
    <!-- factory:plan -->
    **Plan for #<n>** (auto-approved; the PR is where it gets reviewed)
    ...
    ```
-   Both comments are posted once. On a later run, if a person replied after them with changes, treat it as
-   review feedback: update the plan in a new `factory:plan` comment and rework the branch and PR.
+   The plan is posted once. If a person replies after it with changes, treat that as review feedback:
+   update the plan in a new `factory:plan` comment and rework the branch and PR.
 3. **Build.** Implement exactly the approved plan, in its own top-level `kebab-case` folder with a
    `README.md` (purpose, files, how to run). Add or update the project's row in the **Projects** table
    of `CLAUDE.md` in the same change, keeping that file under 100 lines. Anything not in the plan goes
