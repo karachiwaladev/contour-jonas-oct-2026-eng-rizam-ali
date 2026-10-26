@@ -16,7 +16,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $Repo = 'karachiwaladev/contour-jonas-oct-2026-eng-rizam-ali'
 $Branch = 'main'
-$MaxBytes = 1MB
+$MaxBytes = 1MB          # text files
+$MaxImageBytes = 5MB     # screenshots
+$ImageExt = '\.(png|jpe?g|gif|webp)$'
 
 # Never uploaded: local-only logs/state, and anything that commonly holds secrets.
 $ExcludeDirs = @('.git', 'node_modules', '.claude/hooks/state')
@@ -86,15 +88,19 @@ try {
         if ($ExcludeFiles -contains $rel) { continue }
         if ($ExcludeDirs | Where-Object { $rel -eq $_ -or $rel.StartsWith("$_/") }) { continue }
         if ($rel -match $SecretNames) { $skipped += "$rel (looks like a secrets file)"; continue }
-        if ($file.Length -gt $MaxBytes) { $skipped += "$rel (over 1 MB)"; continue }
+        $isImage = $rel -match $ImageExt
+        $limit = if ($isImage) { $MaxImageBytes } else { $MaxBytes }
+        if ($file.Length -gt $limit) { $skipped += "$rel (over $($limit / 1MB) MB)"; continue }
 
         $bytes = [IO.File]::ReadAllBytes($file.FullName)
         $local = Get-BlobSha $bytes
         $r = $remote[$rel]; $s = $state[$rel]
 
         if ($local -eq $r) { $state[$rel] = $r; continue }                       # already identical
-        $text = [Text.Encoding]::UTF8.GetString($bytes)
-        if ($text -match $SecretText) { $skipped += "$rel (contains something that looks like a token)"; continue }
+        if (-not $isImage) {
+            $text = [Text.Encoding]::UTF8.GetString($bytes)
+            if ($text -match $SecretText) { $skipped += "$rel (contains something that looks like a token)"; continue }
+        }
 
         if (-not $r -and -not $s) { $toPush += @{ path = $rel; bytes = $bytes; sha = $local; kind = 'add' }; continue }
         if ($r -and $r -eq $s)     { $toPush += @{ path = $rel; bytes = $bytes; sha = $local; kind = 'update' }; continue }

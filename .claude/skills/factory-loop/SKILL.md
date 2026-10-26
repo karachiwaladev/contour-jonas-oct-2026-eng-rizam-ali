@@ -55,12 +55,11 @@ If nothing is open, say so and stop.
    ```
 3. **Decide what it needs**, then do all of it:
    - **A question:** write an accurate, direct answer. Lead with the answer, then brief supporting facts and a source.
-   - **A file or change:** create or edit it in the working folder. Match the style of the files already there.
-   - **A new project:** put it in its own top-level `kebab-case` folder with a `README.md` (purpose, files, how to run), and add a row to the **Projects** table in `CLAUDE.md` in the same change. Keep `CLAUDE.md` under 100 lines.
-   - **Anything else the ticket asks for** (several files, config, docs, a skill): do it, within the hard rule above.
-   - **Ambiguous:** take the most reasonable reading, state the assumption in your comment, and carry on.
-4. **Check it.** Run what you built when it can be run: a syntax check, a test, or the app in a headless browser. Fix what fails. Say in the comment what was and wasn't tested. Don't claim a check you didn't run.
-   - For browser apps with IndexedDB in headless Edge: serve over `http://localhost`, run in real time (`--virtual-time-budget` outruns IndexedDB), and keep the profile path short (a long path breaks IndexedDB on Windows).
+   - **A small file or change** (a doc, a config tweak, one file, a typo): create or edit it in the working folder. Match the style of the files already there.
+   - **A build:** a new project, a new feature, or a change to what an app does or looks like. Follow **Building a project or feature** below. Do not skip its gates.
+   - **Anything else the ticket asks for** (config, docs, a skill): do it, within the hard rule above.
+   - **Ambiguous and not a build:** take the most reasonable reading, state the assumption in your comment, and carry on.
+4. **Check it.** Run what you built when it can be run: a syntax check, a test, or the app in a browser. Fix what fails. Say in the comment what was and wasn't tested. Don't claim a check you didn't run. For a build, the browser check is the one in **Building a project or feature**.
 5. **Push it.** If the ticket changed files, commit and push to `main` *before* commenting, so the comment can link the commit:
    ```powershell
    powershell -NoProfile -File .claude\hooks\sync-to-github.ps1 -Message "<what changed> (closes #<n>)"
@@ -80,6 +79,7 @@ If nothing is open, say so and stop.
 
    <what was done: files created or changed, how it works or how to run it>
    <what was tested, and anything not tested or assumed>
+   <for a build: the screenshots, each with a caption, and the approved plan's scope>
    ```
 7. **Close it** as completed (skip if it is already closed):
    ```powershell
@@ -87,6 +87,50 @@ If nothing is open, say so and stop.
    ```
 
 If a step fails, leave that ticket open, note the error, and move on to the next ticket.
+
+## Building a project or feature
+
+A build ticket goes through five stages, in order. **Stages 1 and 2 need the user.** The loop may run
+unattended, so never guess past them: if the user hasn't answered, stop work on that ticket, leave it
+open (👀 stays on it), post one comment saying what you are waiting for, and move on.
+
+1. **Clarify.** Read the ticket and the existing project, then use `AskUserQuestion` (load it with
+   `ToolSearch` if needed) to ask about every assumption that would change what you build: scope, data
+   and where it lives, UI and behaviour, edge cases, what is out of scope. Ask 1 to 4 focused questions,
+   offer a recommended default for each, and don't ask what the ticket or the code already answers.
+   Skip a question only if the ticket clearly settles it.
+2. **Plan and get approval.** Enter plan mode (`EnterPlanMode`), write a short plan: what you will
+   build, the files and folders, how it works, how you will verify it in the browser, and what is out of
+   scope. Present it with `ExitPlanMode` and **wait for approval**. If the user changes the plan,
+   revise and ask again. Don't write any project files before approval.
+3. **Build.** Implement exactly the approved plan, in its own top-level `kebab-case` folder with a
+   `README.md` (purpose, files, how to run). Add or update the project's row in the **Projects** table
+   of `CLAUDE.md` in the same change, keeping that file under 100 lines. Anything not in the plan goes
+   back to stage 2.
+4. **Verify in the browser.** Run the app and use it for real, then fix what is wrong and re-run.
+   - **Use chrome-devtools.** If its MCP tools are available (`mcp__chrome-devtools__*`; find them with
+     `ToolSearch` "chrome-devtools"), use them: serve the project over `http://localhost`, open it,
+     drive every feature in the plan (click, type, reload), check the console for errors and the network
+     for failures, and take screenshots.
+   - **If chrome-devtools is not installed, say so** in your report and in the ticket comment, and fall
+     back to headless Edge: `msedge --headless=new --screenshot=<file> --window-size=1000,800 <url>`
+     for the page, and a throwaway test page (kept in the scratchpad, never committed) for states that
+     need interaction. Serve over `http://localhost`, run in real time (`--virtual-time-budget` outruns
+     IndexedDB), and keep the profile path short (a long path breaks IndexedDB on Windows). Never
+     install chrome-devtools yourself: tell the user to run `claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest`.
+   - **Screenshots:** capture each meaningful state (first load, after the main action, an error or
+     empty state, mobile width if the plan has one). Save PNGs, under 1 MB each, to
+     `<project>/docs/screenshots/ticket-<n>-<state>.png`. Only screenshot what belongs to this project;
+     never capture secrets or private pages.
+5. **Attach to the ticket.** GitHub's API cannot upload files to a comment, so commit the screenshots
+   (the **Push it** step in the ticket loop does this) and embed them in the comment with permanent
+   links pinned to the commit:
+   ```markdown
+   ![After adding a task](https://raw.githubusercontent.com/<repo>/<commit-sha>/<project>/docs/screenshots/ticket-<n>-added.png)
+   ```
+   Get the sha with `gh api repos/<repo>/git/ref/heads/main -q .object.sha` after pushing. Put a one-line
+   caption on each image, and list what each screenshot proves. Say plainly what was verified in the
+   browser and what was not.
 
 ## 3. Report
 
